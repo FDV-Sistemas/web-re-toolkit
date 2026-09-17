@@ -3089,6 +3089,10 @@
     this.destination = {
       channelCount: audioSettings.channel_count || 2,
       maxChannelCount: audioSettings.max_channel_count || 2,
+      channelCountMode: "explicit",
+      channelInterpretation: "speakers",
+      numberOfInputs: 1,
+      numberOfOutputs: 0,
       connect: function () {},
       disconnect: function () {}
     };
@@ -3108,6 +3112,11 @@
 
   function audioNode(extra) {
     var node = {
+      channelCount: 2,
+      channelCountMode: "max",
+      channelInterpretation: "speakers",
+      numberOfInputs: 1,
+      numberOfOutputs: 1,
       connect: function () { return node; },
       disconnect: function () {},
       start: function () {},
@@ -3125,7 +3134,7 @@
   }
 
   AudioContext.prototype.createOscillator = function () {
-    return audioNode({ type: "sine", frequency: param(440), detune: param(0) });
+    return audioNode({ type: "sine", frequency: param(440), detune: param(0), numberOfInputs: 0 });
   };
 
   AudioContext.prototype.createAnalyser = function () {
@@ -3179,23 +3188,25 @@
   AudioContext.prototype.createDynamicsCompressor = function () {
     return audioNode({
       threshold: param(-24), knee: param(30), ratio: param(12),
-      attack: param(0.003), release: param(0.25),
+      attack: param(0.003000000026077032), release: param(0.25),
+      channelCountMode: "clamped-max",
       reduction: audioSettings.reduction === undefined ? 0 : audioSettings.reduction
     });
   };
   AudioContext.prototype.createBufferSource = function () {
-    return audioNode({ buffer: null, loop: false });
+    return audioNode({ buffer: null, loop: false, numberOfInputs: 0 });
   };
   AudioContext.prototype.createBuffer = function (channels, length, rate) {
     return {
       numberOfChannels: channels,
       length: length,
       sampleRate: rate,
+      duration: length / rate,
       getChannelData: function () { return new Float32Array(length); }
     };
   };
   AudioContext.prototype.createScriptProcessor = function () {
-    return audioNode({ onaudioprocess: null });
+    return audioNode({ onaudioprocess: null, channelCount: 1, channelCountMode: "explicit" });
   };
   AudioContext.prototype.close = function () {
     this.state = "closed";
