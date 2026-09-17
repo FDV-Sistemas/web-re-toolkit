@@ -380,7 +380,12 @@ fn install_webgl_context(
 
   Ctx.prototype.getParameter = {parameter_host};
   Ctx.prototype.getSupportedExtensions = {extension_host};
-  Ctx.prototype.getShaderPrecisionFormat = function () {{
+  Ctx.prototype.getShaderPrecisionFormat = function (shaderType, precisionType) {{
+    // INT: LOW_INT 36339, MEDIUM_INT 36340, HIGH_INT 36341 -> [31,30,0]
+    // FLOAT: LOW/MEDIUM/HIGH_FLOAT 36336/36337/36338 -> [127,127,23]
+    if (precisionType >= 36339 && precisionType <= 36341) {{
+      return {{ rangeMin: 31, rangeMax: 30, precision: 0 }};
+    }}
     return {{ rangeMin: 127, rangeMax: 127, precision: 23 }};
   }};
   Ctx.prototype.getContextAttributes = function () {{
