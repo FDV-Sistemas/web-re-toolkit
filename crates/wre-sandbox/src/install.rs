@@ -402,6 +402,14 @@ fn install_webgl_context(
     if (name === "WEBGL_debug_renderer_info") {{
       return {{ UNMASKED_VENDOR_WEBGL: 37445, UNMASKED_RENDERER_WEBGL: 37446 }};
     }}
+    if (name === "EXT_texture_filter_anisotropic"
+        || name === "WEBKIT_EXT_texture_filter_anisotropic"
+        || name === "MOZ_EXT_texture_filter_anisotropic") {{
+      return {{ MAX_TEXTURE_MAX_ANISOTROPY_EXT: 34047, TEXTURE_MAX_ANISOTROPY_EXT: 34046 }};
+    }}
+    if (name === "WEBGL_draw_buffers") {{
+      return {{ MAX_DRAW_BUFFERS_WEBGL: 34852, MAX_COLOR_ATTACHMENTS_WEBGL: 36063 }};
+    }}
     return {{}};
   }};
 
