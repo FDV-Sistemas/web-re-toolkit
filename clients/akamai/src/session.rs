@@ -1404,6 +1404,14 @@ impl Session {
             .as_mut()
             .ok_or_else(|| ClientError::internal("the sandbox is not mounted"))?;
 
+        // O sensor so conta um keydown quando document.activeElement e um campo
+        // de texto (o handler de mouse nao tem esse gate). O clique do stream nao
+        // foca de forma confiavel (elementFromPoint depende de __box de layout),
+        // entao focamos o campo diretamente antes de tocar os eventos.
+        let _ = browser.eval(
+            "(function(){var f=document.querySelector('input[type=text],input[type=search],input:not([type])');if(f&&typeof f.focus==='function'){f.focus();}return document.activeElement?document.activeElement.tagName:null;})()",
+        );
+
         browser
             .play_warped(stream.events(), warp)
             .map_err(failed)?;

@@ -5039,7 +5039,7 @@
     made.timeStamp = elapsed();
 
     var target = targetFor(type, options);
-    if (type === "mousedown" && target !== globalThis && FOCUSABLE[target.localName]) focusNode(target);
+    if ((type === "mousedown" || type === "pointerdown") && target !== globalThis && FOCUSABLE[target.localName]) focusNode(target);
 
     made.target = target;
     made.srcElement = target;
