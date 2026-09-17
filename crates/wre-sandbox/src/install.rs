@@ -380,6 +380,17 @@ fn install_webgl_context(
 
   Ctx.prototype.getParameter = {parameter_host};
   Ctx.prototype.getSupportedExtensions = {extension_host};
+  Ctx.prototype.getShaderPrecisionFormat = function () {{
+    return {{ rangeMin: 127, rangeMax: 127, precision: 23 }};
+  }};
+  Ctx.prototype.getContextAttributes = function () {{
+    return {{
+      alpha: true, antialias: true, depth: true, desynchronized: false,
+      failIfMajorPerformanceCaveat: false, powerPreference: "default",
+      premultipliedAlpha: true, preserveDrawingBuffer: false, stencil: false,
+      xrCompatible: false
+    }};
+  }};
   Ctx.prototype.getExtension = function (name) {{
     var supported = this.getSupportedExtensions() || [];
     if (supported.indexOf(name) < 0) return null;

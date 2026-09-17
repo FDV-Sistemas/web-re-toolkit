@@ -1735,6 +1735,9 @@
     for (var enumName in CANVAS_ENUMS) {
       if (Object.prototype.hasOwnProperty.call(CANVAS_ENUMS, enumName)) {
         WebGLRenderingContext.prototype[enumName] = CANVAS_ENUMS[enumName];
+        if (globalThis.WebGL2RenderingContext) {
+          globalThis.WebGL2RenderingContext.prototype[enumName] = CANVAS_ENUMS[enumName];
+        }
       }
     }
 
