@@ -1,0 +1,45 @@
+name: build-wred
+
+# Compila o sidecar `wred` para linux/x86_64 — a arquitetura da VPS do motor.
+# Não dá para compilar no Mac do time (arm64) nem na VPS (2 vCPU, sem swap: o
+# link do V8 arrisca OOM ao lado do CRM). O artefato é baixado e copiado à mão.
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/chrome-152]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustc -vV
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: wred-linux-x86_64
+
+      - name: Dependências de build (V8/boringssl)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build clang pkg-config libssl-dev
+
+      - name: cargo build --release -p wre-clientd
+        run: cargo build --release -p wre-clientd
+
+      - name: Conferir o binário
+        run: |
+          file target/release/wred
+          ./target/release/wred --version || true
+          # o alvo tem que ser ELF x86-64, senão não roda no container do motor
+          file target/release/wred | grep -q "ELF 64-bit.*x86-64"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wred-linux-x86_64
+          path: target/release/wred
+          retention-days: 14
