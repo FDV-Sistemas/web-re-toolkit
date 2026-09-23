@@ -20,8 +20,14 @@ static CHALLENGE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?i)(sec-cpt|_sec/cp_challenge|challenge_id|cp_challenge)"#).expect("challenge pattern")
 });
 
+// O teto era 24 e a Azul passou a servir o sensor sob um primeiro segmento de 27
+// caracteres (`38yE6YkmUJAan-8ObquNKEGZbMs/...`) em 2026-09-22. Um único segmento
+// reprovando derruba o `all()` abaixo, `surface.sensor` fica vazio e o solve morre
+// com "names no Akamai sensor script" — a página inteira parece desprotegida.
+// O comprimento não é sinal de nada: o que identifica o path ofuscado é o ALFABETO
+// (sem ponto, sem /akam/, >= 4 segmentos). 64 dá folga sem afrouxar isso.
 static SEGMENT: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^[A-Za-z0-9_-]{1,24}$").expect("segment pattern"));
+    LazyLock::new(|| Regex::new(r"^[A-Za-z0-9_-]{1,64}$").expect("segment pattern"));
 
 const MARK: &str = "aeiouy13579";
 
@@ -288,6 +294,23 @@ mod tests {
     const PLAIN: &str = r#"<html><head>
 <script src="https://www.example.com/akam/11/5c9e4a7b"></script>
 </head></html>"#;
+
+    // Caso real (voeazul.com.br, 2026-09-22): primeiro segmento de 27 caracteres.
+    // Com o teto antigo de 24 a página inteira parecia desprotegida.
+    const AZUL: &str = r#"<html><head>
+<script src="/38yE6YkmUJAan-8ObquNKEGZbMs/wpkikzYp/AnJVAQ/XgQhNn/kLGTU7?v=833af67c-a187-e395-6739-7e1de8481728&t=554070889"></script>
+<script src="/38yE6YkmUJAan-8ObquNKEGZbMs/OkkikzYpDaYXwJ/Ay9OAQ/Yz81Eg/5mPwYB"></script>
+</head></html>"#;
+
+    #[test]
+    fn a_long_first_segment_is_still_the_sensor() {
+        let surface = discover(AZUL, "https://www.voeazul.com.br/br/pt/home");
+
+        let sensor = surface.sensor.clone().expect("sensor com segmento de 27 chars");
+        assert_eq!(sensor.kind, Kind::Obfuscated);
+        assert!(sensor.url.ends_with("/kLGTU7"));
+        assert!(surface.is_protected());
+    }
 
     #[test]
     fn the_obfuscated_path_is_the_sensor_and_the_akam_script_is_the_pixel_client() {
