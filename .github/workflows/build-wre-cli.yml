@@ -1,0 +1,41 @@
+name: build-wre-cli
+
+# Compila o CLI `wre` para o Mac do time (Apple Silicon), so para CAPTURAR PERFIS:
+#   ./wre sandbox capture --open --label <id> --root .
+# Existe para ninguem precisar montar Rust nem esperar o build que linka o V8.
+# O `wred` (sidecar de producao) e outro alvo, em build-wred.yml, e e linux/x86_64.
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14          # Apple Silicon (arm64), igual ao Mac do time
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustc -vV
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: wre-cli-macos-arm64
+
+      - name: Dependencias de build
+        run: brew install cmake ninja || true
+
+      - name: cargo build --release -p wre-cli
+        run: cargo build --release -p wre-cli
+
+      - name: Conferir o binario
+        run: |
+          file target/release/wre
+          file target/release/wre | grep -q "arm64"
+          ./target/release/wre --help | head -20 || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wre-cli-macos-arm64
+          path: target/release/wre
+          retention-days: 14
