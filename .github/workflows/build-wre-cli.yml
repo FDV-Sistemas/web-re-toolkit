@@ -27,17 +27,21 @@ jobs:
       - name: Dependencias de build
         run: brew install cmake ninja || true
 
-      - name: cargo build --release -p wre-cli
-        run: cargo build --release -p wre-cli
+      - name: cargo build --release (cli + wred)
+        # o wred macOS serve para medir a Azul a partir de uma conexao RESIDENCIAL,
+        # que e o unico IP que recebe bm_sc 4~1; o da VPS e linux/x86_64
+        run: cargo build --release -p wre-cli -p wre-clientd
 
-      - name: Conferir o binario
+      - name: Conferir os binarios
         run: |
-          file target/release/wre
-          file target/release/wre | grep -q "arm64"
-          ./target/release/wre --help | head -20 || true
+          file target/release/wre target/release/wred
+          file target/release/wred | grep -q "arm64"
+          ./target/release/wred --version || true
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wre-cli-macos-arm64
-          path: target/release/wre
+          name: wre-macos-arm64
+          path: |
+            target/release/wre
+            target/release/wred
           retention-days: 14
