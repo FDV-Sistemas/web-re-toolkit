@@ -1,5 +1,6 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, LazyLock, Mutex};
+use std::time::{Duration, Instant};
 
 use regex::Regex;
 
@@ -956,6 +957,32 @@ impl Session {
         found
     }
 
+/// Cache de assets ENTRE sessões, ligado por `WRE_ASSET_CACHE_TTL_S` (0 = desligado).
+///
+/// O sensor e o script do desafio somam ~1,1 MB e são **byte a byte idênticos** entre
+/// sessões (medido na Azul em 2026-09-23: 3 sessões, IPs diferentes, mesmo sha256).
+/// Como cada sessão nova os rebaixa pelo proxy, eles respondem por ~60% da conta de
+/// banda — e a página em si custa 2 KB. Um navegador de verdade não rebaixa script que
+/// já tem em cache; nós rebaixávamos sempre.
+///
+/// A chave é o PATH sem query: a borda varia `?v=`/`?t=` a cada visita, mas serve o
+/// mesmo corpo. Por isso o TTL importa — num deploy da Azul o path muda (foi o que
+/// aconteceu em 2026-09-22) e servir corpo velho reproduz aquele apagão.
+/// Só entra no cache resposta 200 de script.
+static ASSET_CACHE: LazyLock<Mutex<HashMap<String, (Instant, FetchResponse)>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+fn asset_cache_ttl() -> Option<Duration> {
+    let raw = std::env::var("WRE_ASSET_CACHE_TTL_S").ok()?;
+    let secs: u64 = raw.trim().parse().ok()?;
+    (secs > 0).then(|| Duration::from_secs(secs))
+}
+
+/// Path sem query — ver a nota do cache sobre `?v=`/`?t=`.
+fn asset_key(url: &str) -> String {
+    url.split('?').next().unwrap_or(url).to_string()
+}
+
     fn fetch_batch(&self, wanted: &[Want]) -> Vec<ClientResult<FetchResponse>> {
         let requests: Vec<FetchRequest> = wanted
             .iter()
@@ -992,7 +1019,60 @@ impl Session {
             })
             .collect();
 
-        let answers = self.http.fetch_together(requests);
+        let ttl = asset_cache_ttl();
+
+        // Sem TTL configurado nada muda: busca tudo, como antes.
+        let mut answers: Vec<ClientResult<FetchResponse>> = if let Some(ttl) = ttl {
+            let mut pronto: Vec<Option<FetchResponse>> = vec![None; wanted.len()];
+            {
+                let mut cache = ASSET_CACHE.lock().unwrap_or_else(|error| error.into_inner());
+                cache.retain(|_, (gravado, _)| gravado.elapsed() < ttl);
+                for (indice, want) in wanted.iter().enumerate() {
+                    if want.kind != Asset::Script {
+                        continue;
+                    }
+                    if let Some((_, resposta)) = cache.get(&asset_key(&want.url)) {
+                        pronto[indice] = Some(resposta.clone());
+                    }
+                }
+            }
+
+            let faltam: Vec<usize> = (0..wanted.len()).filter(|i| pronto[*i].is_none()).collect();
+            let pedidos: Vec<FetchRequest> = faltam
+                .iter()
+                .map(|i| requests[*i].clone())
+                .collect();
+            let vieram = self.http.fetch_together(pedidos);
+
+            {
+                let mut cache = ASSET_CACHE.lock().unwrap_or_else(|error| error.into_inner());
+                for (posicao, indice) in faltam.iter().enumerate() {
+                    if wanted[*indice].kind != Asset::Script {
+                        continue;
+                    }
+                    if let Ok(resposta) = &vieram[posicao] {
+                        if resposta.status == 200 {
+                            cache.insert(
+                                asset_key(&wanted[*indice].url),
+                                (Instant::now(), resposta.clone()),
+                            );
+                        }
+                    }
+                }
+            }
+
+            let mut vieram = vieram.into_iter();
+            pronto
+                .into_iter()
+                .map(|guardado| match guardado {
+                    Some(resposta) => Ok(resposta),
+                    None => vieram.next().expect("uma resposta por item faltante"),
+                })
+                .collect()
+        } else {
+            self.http.fetch_together(requests)
+        };
+        let answers = std::mem::take(&mut answers);
 
         let mut trail = self.trail.lock().unwrap_or_else(|error| error.into_inner());
         for (want, answer) in wanted.iter().zip(answers.iter()) {
