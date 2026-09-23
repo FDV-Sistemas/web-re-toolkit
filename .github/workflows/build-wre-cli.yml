@@ -8,6 +8,7 @@ on:
   workflow_dispatch:
   push:
     paths: ['.github/workflows/build-wre-cli.yml']
+    branches: [fix/trust-anchors]
 
 jobs:
   build:

@@ -78,8 +78,8 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 twox-hash = "2.1.3"
 url = "2.5.8"
 walkdir = "2.5.0"
-wreq = { version = "6.0.0-rc.29", default-features = false, features = ["webpki-roots", "tokio-rt", "json", "gzip", "brotli", "deflate", "zstd", "socks", "cookies", "stream", "charset", "tracing"] }
-wreq-util = { version = "3.0.0-rc.14", features = ["emulation", "emulation-serde", "emulation-compression"] }
+wreq = { version = "0.16.1", default-features = false, features = ["chromium-roots", "tokio-rt", "json", "gzip", "brotli", "deflate", "zstd", "socks", "cookies", "stream", "charset", "tracing"] }
+wreq-util = { git = "https://github.com/0x676e67/wreq-util", rev = "7d3d7ce3848e1cec15c222aa2423c9e543d7586f", features = ["emulation", "emulation-serde", "emulation-compression", "emulation-chromium-pki"] }
 
 oxc_allocator = "0.143.0"
 oxc_ast = "0.143.0"
@@ -101,3 +101,11 @@ strip = "symbols"
 
 [profile.dev]
 opt-level = 1
+
+# Chrome 152 só existe em commits posteriores à tag v0.2.0 do wreq-util, e a feature
+# `emulation-chromium-pki` (o trust_anchors do Chrome real) exige um wreq mais novo
+# que o 0.16.1 publicado. Estes são os mesmos revs que o Cargo.toml do wreq-util usa.
+[patch.crates-io]
+wreq = { git = "https://github.com/0x676e67/wreq", rev = "cd76bcdf1307153de289d34e072528bdf0510a3b" }
+btls = { git = "https://github.com/0x676e67/btls", rev = "129887582a538b8f4dcf371d15c953335312ca37" }
+btls-sys = { git = "https://github.com/0x676e67/btls", rev = "129887582a538b8f4dcf371d15c953335312ca37" }

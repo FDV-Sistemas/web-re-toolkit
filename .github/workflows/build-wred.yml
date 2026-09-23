@@ -6,7 +6,7 @@ name: build-wred
 on:
   workflow_dispatch:
   push:
-    branches: [fix/sensor-path-24]
+    branches: [fix/trust-anchors]
 
 jobs:
   build:
