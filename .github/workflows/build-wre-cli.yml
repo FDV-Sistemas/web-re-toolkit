@@ -6,6 +6,8 @@ name: build-wre-cli
 # O `wred` (sidecar de producao) e outro alvo, em build-wred.yml, e e linux/x86_64.
 on:
   workflow_dispatch:
+  push:
+    paths: ['.github/workflows/build-wre-cli.yml']
 
 jobs:
   build:
